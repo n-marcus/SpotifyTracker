@@ -17,6 +17,18 @@ else:
     import subprocess
     import dbus
 
+def getSongData(songname):
+    artist = ""
+    song = ""
+    if songname.count(" - ") == 1:
+        artist, song = songname.rsplit(" - ", 1)
+    if songname.count(" - ") == 2:
+        artist, song, garbage = songname.rsplit(" - ", 2)
+    if " / " in song:
+        song, garbage = song.rsplit(" / ", 1)
+    song = re.sub(' \(.*?\)', '', song, flags=re.DOTALL)
+    return(song, artist)
+
 
 def getlyrics(songname, sync=False):
     error = "Error: Could not find lyrics."

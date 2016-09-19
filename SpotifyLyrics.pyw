@@ -113,9 +113,7 @@ class Ui_Form(object):
                 if not os.path.exists(directory):
                     os.makedirs(directory)
                 with open(settingsfile, 'w+') as settings:
-                    settings.write("[settings]\nSyncedLyrics=False\nAlwaysOnTop=False\nFontSize=10\nOpenSpotify=False")
-            if self.sync is True:
-                self.comboBox.setItemText(1, ("Synced Lyrics (on)"))
+                    settings.write("[settings]\nAlwaysOnTop=False\nFontSize=10\nOpenSpotify=False")
             if self.ontop is True:
                 Form.setWindowFlags(Form.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
                 self.comboBox.setItemText(2, ("Always on Top (on)"))
@@ -125,10 +123,6 @@ class Ui_Form(object):
         else:
             with open(settingsfile, 'w+') as settings:
                 settings.write("[settings]\n")
-                if self.sync is True:
-                    settings.write("SyncedLyrics=True\n")
-                else:
-                    settings.write("SyncedLyrics=False\n")
                 if self.ontop is True:
                     settings.write("AlwaysOnTop=True\n")
                 else:
@@ -142,32 +136,25 @@ class Ui_Form(object):
     def optionschanged(self):
         current_index = self.comboBox.currentIndex()
         if current_index == 1:
-            if self.sync is True:
-                self.sync = False
-                self.comboBox.setItemText(1, ("Synced Lyrics"))
-            else:
-                self.sync = True
-                self.comboBox.setItemText(1, ("Synced Lyrics (on)"))
-        elif current_index == 2:
             if self.ontop is False:
                 self.ontop = True
                 Form.setWindowFlags(Form.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
-                self.comboBox.setItemText(2, ("Always on Top (on)"))
+                self.comboBox.setItemText(1, ("Always on Top (on)"))
                 Form.show()
             else:
                 self.ontop = False
                 Form.setWindowFlags(Form.windowFlags() & ~QtCore.Qt.WindowStaysOnTopHint)
-                self.comboBox.setItemText(2, ("Always on Top"))
+                self.comboBox.setItemText(1, ("Always on Top"))
                 Form.show()
-        elif current_index == 3:
+        elif current_index == 2:
             self.load_save_settings(save=True)
-        elif current_index == 4:
+        elif current_index == 3:
             if self.open_spotify is True:
                 self.open_spotify = False
-                self.comboBox.setItemText(4, ("Open Spotify"))
+                self.comboBox.setItemText(3, ("Open Spotify"))
             else:
                 self.open_spotify = True
-                self.comboBox.setItemText(4, ("Open Spotify (on)"))
+                self.comboBox.setItemText(3, ("Open Spotify (on)"))
         else:
             pass
         self.comboBox.setCurrentIndex(0)
@@ -246,10 +233,9 @@ class Ui_Form(object):
         self.textBrowser.setText(_translate("Form", "I don't think Spotify is open")) ##THIS Writes stuff
         self.fontBox.setToolTip(_translate("Form", "Font Size"))
         self.comboBox.setItemText(0, _translate("Form", "Options"))
-        self.comboBox.setItemText(1, _translate("Form", "Synced Lyrics"))
-        self.comboBox.setItemText(2, _translate("Form", "Always on Top"))
-        self.comboBox.setItemText(3, _translate("Form", "Save Settings"))
-        self.comboBox.setItemText(4, _translate("Form", "Open Spotify"))
+        self.comboBox.setItemText(1, _translate("Form", "Always on Top"))
+        self.comboBox.setItemText(2, _translate("Form", "Save Settings"))
+        self.comboBox.setItemText(3, _translate("Form", "Open Spotify"))
 
     def lyrics_thread(self, comm):
         oldsongname = ""
@@ -261,10 +247,13 @@ class Ui_Form(object):
         while True:
             songname = backend.getwindowtitle()
             oldsongname = songname
+
             print("Playing: " + songname + " old song = " + oldsongname)
-            comm.signal.emit(songname, "Playing song " + songname + " by ")# + artist)
+
+            songname, artist = backend.getSongData(songname)
+            comm.signal.emit(songname, "Playing song " + songname + " by " + artist)
             if songname != "Spotify" and songname != "":
-                #getSongData(songname)
+
                 oldsongname = songname
                 start = time.time() ##time a new song started
                 lyrics, url, timed = backend.getlyrics(songname)
