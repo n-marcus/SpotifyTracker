@@ -17,6 +17,8 @@ wb = load_workbook(filename = dest_filename)
 ws = wb.active
 indexread = False
 index = 0
+startTime = 0
+endTime = 0
 
 
 if os.name == "nt":
@@ -280,11 +282,16 @@ class Ui_Form(object):
         self.comboBox.setItemText(3, _translate("Form", "Open Spotify"))
 
     def writeNewSongToFile(self, songname):
-        startTime = str(datetime.datetime.now().time())
+        startTime = str(datetime.datetime.now())
         print("Song started at " +startTime)
+
         song, artist = backend.getSongData(songname)
         ws.cell(row=index, column=2).value = artist
         ws.cell(row=index, column=3).value = song
+        ws.cell(row=index, column=4).value = startTime
+        if index > 2: #Notating the endtime
+            ws.cell(row=index-1, column=5).value = startTime
+
 
     def newSong(self, songname):
         global indexread
@@ -295,8 +302,8 @@ class Ui_Form(object):
             indexread = True #we have now read index from the excel file
             print("index read from excel file = " + str(index))
             if index == None or index == 0:
-                index = 1
-                print("index = none, thus index = 1")
+                index = 2
+                print("index = none, thus index = 2")
         elif songname != "Spotify" and songname != "":  # if we have already read an index from the excel file we add one to the index
             index += 1
 
