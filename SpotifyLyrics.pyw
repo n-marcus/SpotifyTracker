@@ -1,17 +1,23 @@
+# -*- coding: utf-8 -*-
 from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5.QtWidgets import QApplication, QPushButton
+from PyQt5.QtCore import pyqtSlot
 from openpyxl import Workbook
 from openpyxl import load_workbook
 import backend
+import datetime
 import time
 import threading
 import os
 import re
 import subprocess
 
-wb = load_workbook(filename = 'test.xlsx')
+dest_filename = "test.xlsx"
+wb = load_workbook(filename = dest_filename)
 ws = wb.active
 indexread = False
 index = 0
+
 
 if os.name == "nt":
     import ctypes
@@ -93,6 +99,12 @@ class Ui_Form(object):
         self.retranslateUi(Form)
         self.fontBox.valueChanged.connect(self.update_fontsize)
         self.comboBox.currentIndexChanged.connect(self.optionschanged)
+
+        self.button = QPushButton("&Erase all",Form)
+        self.button.setToolTip('This is an example button')
+        self.button.move(50,550)
+        self.button.clicked.connect(self.eraseExcelData)
+
         QtCore.QMetaObject.connectSlotsByName(Form)
         Form.setTabOrder(self.textBrowser, self.comboBox)
         Form.setTabOrder(self.comboBox, self.fontBox)
@@ -177,6 +189,18 @@ class Ui_Form(object):
             pass
         self.comboBox.setCurrentIndex(0)
 
+    def eraseExcelData(self):
+        '''
+        Clear all cells starting from third row. we keep our header and
+        replaces other rows content by None
+        '''
+        print("Erasing all data")
+        for row in ws.iter_rows(row_offset=0):
+            for cell in row:
+                cell.value=None
+        wb.save(dest_filename)
+        print("Erased everything!")
+
     def set_style(self):
         if os.path.exists(self.settingsdir + "theme.ini"):
             themefile = self.settingsdir + "theme.ini"
@@ -256,6 +280,8 @@ class Ui_Form(object):
         self.comboBox.setItemText(3, _translate("Form", "Open Spotify"))
 
     def writeNewSongToFile(self, songname):
+        startTime = str(datetime.datetime.now().time())
+        print("Song started at " +startTime)
         song, artist = backend.getSongData(songname)
         ws.cell(row=index, column=2).value = artist
         ws.cell(row=index, column=3).value = song
@@ -279,7 +305,7 @@ class Ui_Form(object):
 
         self.writeNewSongToFile(songname)
         print("Saving Sheet...")
-        wb.save("test.xlsx")
+        wb.save(dest_filename)
         print("Saved!")
 
 
@@ -298,7 +324,7 @@ class Ui_Form(object):
                 self.newSong(songname)
             oldsongname = songname
 
-            print("Playing: " + songname + " old song = " + oldsongname)
+            print("Playing: " + songname)
 
             songname, artist = backend.getSongData(songname)
             comm.signal.emit(songname, "Playing song " + songname + " by " + artist)
