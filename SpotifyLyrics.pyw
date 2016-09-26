@@ -11,6 +11,7 @@ import threading
 import os
 import re
 import subprocess
+import SpotipyManager
 
 dest_filename = "test.xlsx"
 wb = load_workbook(filename = dest_filename)
