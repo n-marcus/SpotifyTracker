@@ -6,7 +6,6 @@ import time
 import os
 import sys
 import re
-import lyrics as minilyrics
 
 if sys.platform == "win32":
     import pywintypes

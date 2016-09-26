@@ -2,25 +2,23 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import QApplication, QPushButton
 from PyQt5.QtCore import pyqtSlot
-from openpyxl import Workbook
-from openpyxl import load_workbook
 import backend
-import datetime
 import time
 import threading
 import os
 import re
 import subprocess
 import SpotipyManager
+import Excel
 
-dest_filename = "test.xlsx"
-wb = load_workbook(filename = dest_filename)
-ws = wb.active
+
+
 indexread = False
 index = 0
 startTime = 0
 endTime = 0
-
+song = ""
+artist = ""
 
 if os.name == "nt":
     import ctypes
@@ -45,19 +43,12 @@ class Ui_Form(object):
         self.comm.signal.connect(self.change_lyrics)
         self.setupUi(Form)
         self.set_style()
-        self.setupExcelFormatting()
+        Excel.setupExcelFormatting()
         self.load_save_settings()
         if self.open_spotify:
             self.spotify()
         self.start_thread()
 
-    def setupExcelFormatting(self):
-        print("Preparing the excel file")
-        ws['A1'] = "Index:"
-        ws['B1'] = "Artist:"
-        ws['C1'] = "Songname:"
-        ws['D1'] = "Started playing:"
-        ws['E1'] = "Ended playing:"
 
     def setupUi(self, Form):
         Form.setObjectName("Form")
@@ -106,7 +97,7 @@ class Ui_Form(object):
         self.button = QPushButton("&Erase all",Form)
         self.button.setToolTip('This is an example button')
         self.button.move(50,550)
-        self.button.clicked.connect(self.eraseExcelData)
+        self.button.clicked.connect(Excel.eraseExcelData)
 
         QtCore.QMetaObject.connectSlotsByName(Form)
         Form.setTabOrder(self.textBrowser, self.comboBox)
@@ -192,17 +183,6 @@ class Ui_Form(object):
             pass
         self.comboBox.setCurrentIndex(0)
 
-    def eraseExcelData(self):
-        '''
-        Clear all cells starting from third row. we keep our header and
-        replaces other rows content by None
-        '''
-        print("Erasing all data")
-        for row in ws.iter_rows(row_offset=0):
-            for cell in row:
-                cell.value=None
-        wb.save(dest_filename)
-        print("Erased everything!")
 
     def set_style(self):
         if os.path.exists(self.settingsdir + "theme.ini"):
@@ -282,43 +262,17 @@ class Ui_Form(object):
         self.comboBox.setItemText(2, _translate("Form", "Save Settings"))
         self.comboBox.setItemText(3, _translate("Form", "Open Spotify"))
 
-    def writeNewSongToFile(self, songname):
-        startTime = str(datetime.datetime.now())
-        print("Song started at " +startTime)
-
-        song, artist = backend.getSongData(songname)
-        ws.cell(row=index, column=2).value = artist
-        ws.cell(row=index, column=3).value = song
-        ws.cell(row=index, column=4).value = startTime
-        if index > 2: #Notating the endtime
-            ws.cell(row=index-1, column=5).value = startTime
-
-
     def newSong(self, songname):
-        global indexread
-        global index
+        Excel.manageIndex(songname)
 
-        if indexread == False:
-            index = ws['A2'].value
-            indexread = True #we have now read index from the excel file
-            print("index read from excel file = " + str(index))
-            if index == None or index == 0:
-                index = 2
-                print("index = none, thus index = 2")
-        elif songname != "Spotify" and songname != "":  # if we have already read an index from the excel file we add one to the index
-            index += 1
+        Excel.writeNewSongToFile(songname)
 
-        #Now lets write the new song to the excel file
-        ws['A2'] = index #first update the index of number of played songs ever
-
-        self.writeNewSongToFile(songname)
-        print("Saving Sheet...")
-        wb.save(dest_filename)
-        print("Saved!")
 
 
 
     def lyrics_thread(self, comm):
+        global song
+        global artist
         oldsongname = ""
         style = self.label_songname.styleSheet()
         if style == "":
@@ -327,18 +281,19 @@ class Ui_Form(object):
             color = style
         while True:
             songname = backend.getwindowtitle()
-            if oldsongname != songname:
+            if oldsongname != songname and songname != "":
                 print("Changed!")
                 self.newSong(songname)
             oldsongname = songname
 
-            print("Playing: " + songname)
+            print("Playing: " + song)
 
-            songname, artist = backend.getSongData(songname)
-            comm.signal.emit(songname, "Playing song " + songname + " by " + artist)
+            song, artist = backend.getSongData(songname)
+
+            comm.signal.emit(songname, "Playing song " + song + " by " + artist)
             if songname != "Spotify" and songname != "": #when you switch songs
 
-                start = time.time() ##time a new song started
+
                 lyrics, url, timed = backend.getlyrics(songname)
                 if url == "":
                     header = songname
