@@ -1,10 +1,17 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
+from openpyxl import Workbook
+from openpyxl import load_workbook
 import backend
 import time
 import threading
 import os
 import re
 import subprocess
+
+wb = load_workbook(filename = 'test.xlsx')
+ws = wb.active
+indexread = False
+index = 0
 
 if os.name == "nt":
     import ctypes
@@ -17,6 +24,7 @@ class Ui_Form(object):
     sync = False
     ontop = False
     open_spotify = False
+
     if os.name == "nt":
         settingsdir = os.getenv("APPDATA") + "\\SpotifyLyrics\\"
     else:
@@ -28,10 +36,19 @@ class Ui_Form(object):
         self.comm.signal.connect(self.change_lyrics)
         self.setupUi(Form)
         self.set_style()
+        self.setupExcelFormatting()
         self.load_save_settings()
         if self.open_spotify:
             self.spotify()
         self.start_thread()
+
+    def setupExcelFormatting(self):
+        print("Preparing the excel file")
+        ws['A1'] = "Index:"
+        ws['B1'] = "Artist:"
+        ws['C1'] = "Songname:"
+        ws['D1'] = "Started playing:"
+        ws['E1'] = "Ended playing:"
 
     def setupUi(self, Form):
         Form.setObjectName("Form")
@@ -71,7 +88,8 @@ class Ui_Form(object):
         self.textBrowser.setFontPointSize(self.fontBox.value())
         self.verticalLayout_2.addWidget(self.textBrowser)
         self.gridLayout_2.addLayout(self.verticalLayout_2, 2, 0, 1, 1)
-
+        #self.button = QtGui.QPushButton('Test', self)
+        #self.button.clicked.connect(self.handleButton)
         self.retranslateUi(Form)
         self.fontBox.valueChanged.connect(self.update_fontsize)
         self.comboBox.currentIndexChanged.connect(self.optionschanged)
@@ -237,6 +255,35 @@ class Ui_Form(object):
         self.comboBox.setItemText(2, _translate("Form", "Save Settings"))
         self.comboBox.setItemText(3, _translate("Form", "Open Spotify"))
 
+    def writeNewSongToFile(self, songname):
+        song, artist = backend.getSongData(songname)
+        ws.cell(row=index, column=2).value = artist
+        ws.cell(row=index, column=3).value = song
+
+    def newSong(self, songname):
+        global indexread
+        global index
+
+        if indexread == False:
+            index = ws['A2'].value
+            indexread = True #we have now read index from the excel file
+            print("index read from excel file = " + str(index))
+            if index == None or index == 0:
+                index = 1
+                print("index = none, thus index = 1")
+        elif songname != "Spotify" and songname != "":  # if we have already read an index from the excel file we add one to the index
+            index += 1
+
+        #Now lets write the new song to the excel file
+        ws['A2'] = index #first update the index of number of played songs ever
+
+        self.writeNewSongToFile(songname)
+        print("Saving Sheet...")
+        wb.save("test.xlsx")
+        print("Saved!")
+
+
+
     def lyrics_thread(self, comm):
         oldsongname = ""
         style = self.label_songname.styleSheet()
@@ -246,15 +293,17 @@ class Ui_Form(object):
             color = style
         while True:
             songname = backend.getwindowtitle()
+            if oldsongname != songname:
+                print("Changed!")
+                self.newSong(songname)
             oldsongname = songname
 
             print("Playing: " + songname + " old song = " + oldsongname)
 
             songname, artist = backend.getSongData(songname)
             comm.signal.emit(songname, "Playing song " + songname + " by " + artist)
-            if songname != "Spotify" and songname != "":
+            if songname != "Spotify" and songname != "": #when you switch songs
 
-                oldsongname = songname
                 start = time.time() ##time a new song started
                 lyrics, url, timed = backend.getlyrics(songname)
                 if url == "":
@@ -262,6 +311,8 @@ class Ui_Form(object):
                 else:
                     header = '''<style type="text/css">a {text-decoration: none; %s}</style><a href="%s">%s</a>''' % (color, url, songname)
             time.sleep(1)
+
+
 
     def start_thread(self):
         lyricsthread = threading.Thread(target=self.lyrics_thread, args=(self.comm,))
